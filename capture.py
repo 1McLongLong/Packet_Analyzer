@@ -1,5 +1,11 @@
 from scapy.all import sniff, IP, TCP, UDP, ICMP
 from datetime import datetime
+import sys
+import os
+
+# Add the analyzers directory to path
+sys.path.append(os.path.join(os.path.dirname(__file__), "analyzers"))
+from analyzers.port_scan import PortScanDetector
 
 
 class PacketCapture:
@@ -15,28 +21,6 @@ class PacketCapture:
 
     def clear(self):
         self.packets = []
-
-
-def start_sniffing(interface=None, packet_count=0):
-    collector = PacketCapture()
-
-    def packet_handler(packet):
-        packet_data = process_packet(packet)
-        collector.add_packet(packet_data)
-        if packet_data:
-            print(
-                f"[{packet_data['protocol']}] {packet_data['src_ip']}:{packet_data['src_port']} → {packet_data['dst_ip']}:{packet_data['dst_port']}"
-            )
-
-    print(f"Starting packet capture on {interface or 'default interface'}...")
-    sniff(
-        iface=interface,
-        filter="tcp or udp or icmp",
-        prn=packet_handler,
-        count=packet_count,
-        store=False,
-    )
-    return collector
 
 
 def process_packet(packet):
@@ -82,7 +66,65 @@ def process_packet(packet):
         return None
 
 
+def start_sniffing_with_detection(interface=None, packet_count=0):
+    """
+    Start capturing packets with port scan detection
+    """
+    collector = PacketCapture()
+    detector = PortScanDetector(unique_ports_threshold=25, time_window=60)
+
+    packet_counter = 0
+
+    def packet_handler(packet):
+        nonlocal packet_counter
+        packet_data = process_packet(packet)
+
+        if packet_data:
+            collector.add_packet(packet_data)
+            detector.track_packet(packet_data)
+
+            packet_counter += 1
+
+            # Check for scans every 10 packets
+            if packet_counter % 10 == 0:
+                scans = detector.detect_scans()
+                if scans:
+                    print("\n" + "=" * 60)
+                    print("⚠️  PORT SCAN DETECTED!")
+                    print("=" * 60)
+                    for scan in scans:
+                        print(f"Source: {scan['src_ip']}")
+                        print(f"Target: {scan['dst_ip']}")
+                        print(f"Unique Ports: {scan['unique_ports']}")
+                        print(f"Total Attempts: {scan['total_attempts']}")
+                        print(f"Ports: {scan['ports_hit'][:10]}...")  # Show first 10
+                        print("-" * 60)
+
+                # Cleanup old data
+                detector.cleanup_old_data()
+
+            # Print normal packet info
+            print(
+                f"[{packet_data['protocol']}] {packet_data['src_ip']}:{packet_data['src_port']} → {packet_data['dst_ip']}:{packet_data['dst_port']}"
+            )
+
+    print(f"Starting packet capture with port scan detection...")
+    print(
+        f"Threshold: {detector.unique_ports_threshold} unique ports in {detector.time_window}s"
+    )
+    print("-" * 60)
+
+    sniff(
+        iface=interface,
+        filter="tcp or udp or icmp",
+        prn=packet_handler,
+        count=packet_count,
+        store=False,
+    )
+
+    return collector, detector
+
+
 if __name__ == "__main__":
-    # Test with capturing 10 packets
-    collector = start_sniffing(packet_count=10)
+    collector, detector = start_sniffing_with_detection(interface="lo0", packet_count=100)
     print(f"\nCaptured {len(collector.get_all_packets())} packets")
