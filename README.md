@@ -2,16 +2,16 @@
 
 A Python-based network security tool for real-time detection of malicious network activity. Built as a portfolio project to demonstrate SOC analyst skills including packet analysis, threat detection, and security automation.
 
-## 🎯 Overview
+## Overview
 
 This packet analyzer monitors network traffic in real-time and detects various types of malicious activity including port scans, data exfiltration attempts, SYN floods, and TCP flag anomalies. It integrates with threat intelligence APIs to identify known malicious actors.
 
-## ✨ Key Features
+## Key Features
 
 ### Detection Capabilities
 
 **Port Scan Detection**
-- Identifies when a source IP probes multiple ports on a target system
+- Identifies when a source IP examines multiple ports on a target system
 - Configurable thresholds for unique ports and time windows
 - Tracks connection patterns across TCP, UDP, and ICMP protocols
 
@@ -39,14 +39,6 @@ Catches suspicious TCP flag patterns used in reconnaissance and evasion:
 - Flags data exfiltration to command & control servers
 - Caches results to minimize API calls
 
-### Additional Features
-
-- **Centralized Configuration** — All thresholds and settings in `config.py`
-- **Alert Logging** — Security events saved to JSON log files
-- **Clean Architecture** — Modular design with separate analyzers for each detection type
-- **Efficient Processing** — Periodic cleanup prevents memory buildup
-- **Production Ready** — Error handling and graceful degradation
-
 ## 🏗️ Project Structure
 ```
 packet_analyzer/
@@ -58,16 +50,9 @@ packet_analyzer/
 │   └── tcp_anomaly.py           # SYN flood & TCP flag anomaly detection
 └── utils/
     ├── threat_intel.py          # IP reputation checking (AbuseIPDB)
-    └── reporting.py             # Alert logging and reporting
 ```
 
-## 🚀 Installation
-
-### Prerequisites
-
-- Python 3.7+
-- Root/Administrator privileges (required for packet capture)
-- Network interface access
+## Installation
 
 ### Required Libraries
 ```bash
@@ -82,43 +67,14 @@ pip install scapy requests
 ABUSEIPDB_API_KEY = "your-api-key-here"
 ```
 
-## 📖 Usage
+## Usage
 
 ### Basic Usage
 ```bash
 # Capture packets on default interface (unlimited)
 sudo python3 capture.py
 
-# Capture 1000 packets
-sudo python3 capture.py  # Set PACKET_COUNT=1000 in config.py
-
-# Capture on specific interface
-# Set NETWORK_INTERFACE="eth0" in config.py
-sudo python3 capture.py
-```
-
-### Configuration
-
-Edit `config.py` to customize detection thresholds:
-```python
-# Port Scan Detection
-PORT_SCAN_UNIQUE_PORTS_THRESHOLD = 25    # Ports to trigger alert
-PORT_SCAN_TIME_WINDOW = 60                # Time window in seconds
-
-# Data Exfiltration Detection
-EXFIL_VOLUME_THRESHOLD_MB = 50            # MB to trigger alert
-EXFIL_TIME_WINDOW = 300                   # 5 minutes
-
-# SYN Flood Detection
-SYN_FLOOD_THRESHOLD = 100                 # SYN packets
-SYN_FLOOD_TIME_WINDOW = 10                # 10 seconds
-
-# Network Interface
-NETWORK_INTERFACE = None                  # None = default, "lo" = localhost
-PACKET_COUNT = 0                          # 0 = unlimited
-```
-
-## 🧪 Testing
+## Testing
 
 ### Test Port Scan Detection
 ```bash
@@ -147,7 +103,7 @@ nmap -sF -p 1-50 scanme.nmap.org
 nc -l 8080 > /dev/null
 
 # Terminal 2: Start analyzer (on loopback)
-sudo python3 capture.py  # Set interface="lo" in config
+sudo python3 capture.py  # Set interface="lo"
 
 # Terminal 3: Send data
 dd if=/dev/urandom bs=1M count=10 | nc 127.0.0.1 8080
@@ -159,7 +115,7 @@ dd if=/dev/urandom bs=1M count=10 | nc 127.0.0.1 8080
 sudo hping3 -S -p 80 --flood --rand-source target-ip
 ```
 
-## 📊 Example Output
+## Example Output
 ```
 ============================================================
 ⚠️  PORT SCAN DETECTED!
@@ -187,7 +143,7 @@ Time:          2024-02-16 14:23:45
 ------------------------------------------------------------
 ```
 
-## 🛠️ Technical Details
+## Technical Details
 
 ### Detection Algorithms
 
@@ -218,7 +174,7 @@ Time:          2024-02-16 14:23:45
 - **Periodic Checks**: Detection runs every N packets (configurable)
 - **Memory Efficient**: Sliding windows prevent unbounded memory growth
 
-## 🎓 Skills Demonstrated
+## Skills Demonstrated
 
 This project showcases key SOC analyst competencies:
 
@@ -229,10 +185,9 @@ This project showcases key SOC analyst competencies:
 - **Python Development**: Clean code, modular architecture, error handling
 - **Security Mindset**: Understanding of attack techniques and defensive measures
 
-## 🔒 Security Considerations
+## Security Considerations
 
 - Requires root privileges for packet capture
 - Only captures packet headers, not payload data
 - Threat intelligence queries skip private IP ranges
-- Alert logs may contain sensitive IP addresses
 - Rate limiting implemented for API calls
