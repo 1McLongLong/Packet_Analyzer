@@ -8,45 +8,28 @@ class SynFloodDetector:
         syn_threshold=100,
         time_window=10,
     ):
-        """
-        Detect SYN floods and suspicious TCP flag patterns.
-
-        Args:
-            syn_threshold: Number of SYN packets per source IP to trigger alert
-            time_window: Time window in seconds to analyze
-        """
         self.syn_threshold = syn_threshold
         self.time_window = time_window
 
-        # Track SYN packets: {src_ip: {dst_ip: [timestamps]}}
         self.syn_tracker = defaultdict(lambda: defaultdict(list))
 
-        # Track suspicious flag patterns: {src_ip: {flag_type: [{"dst_ip", "dst_port", "timestamp"}]}}
         self.flag_tracker = defaultdict(lambda: defaultdict(list))
 
-    # Suspicious flag combinations
     SUSPICIOUS_FLAGS = {
-        "XMAS": {"F", "P", "U"},  # FIN + PSH + URG (Xmas scan)
-        "NULL": set(),  # No flags set (Null scan)
-        "FIN_ONLY": {"F"},  # Only FIN flag (FIN scan)
-        "SYN_FIN": {"S", "F"},  # SYN + FIN (invalid, evasion attempt)
-        "URG_ONLY": {"U"},  # Only URG flag (unusual)
-        "PSH_ONLY": {"P"},  # Only PSH flag (unusual)
+        "XMAS": {"F", "P", "U"},
+        "NULL": set(),
+        "FIN_ONLY": {"F"},
+        "SYN_FIN": {"S", "F"},
+        "URG_ONLY": {"U"},
+        "PSH_ONLY": {"P"},
     }
 
     def _parse_flags(self, tcp_flags):
-        """Convert scapy tcp_flags to a set of flag characters."""
         if tcp_flags is None:
             return set()
         return set(str(tcp_flags))
 
     def track_packet(self, packet_data):
-        """
-        Track a packet for SYN flood and flag anomaly detection.
-
-        Args:
-            packet_data: Dictionary with packet information
-        """
         if packet_data["protocol"] != "TCP" or packet_data["tcp_flags"] is None:
             return
 
@@ -56,11 +39,9 @@ class SynFloodDetector:
         timestamp = packet_data["timestamp"]
         flags = self._parse_flags(packet_data["tcp_flags"])
 
-        # Track SYN packets (SYN set, ACK not set = connection initiation)
         if "S" in flags and "A" not in flags:
             self.syn_tracker[src_ip][dst_ip].append(timestamp)
 
-        # Check for suspicious flag combinations
         for flag_name, flag_set in self.SUSPICIOUS_FLAGS.items():
             if flags == flag_set:
                 self.flag_tracker[src_ip][flag_name].append(
@@ -72,18 +53,11 @@ class SynFloodDetector:
                 )
 
     def detect_syn_flood(self):
-        """
-        Detect SYN flood attacks based on volume of SYN packets.
-
-        Returns:
-            List of detected SYN flood alerts
-        """
         alerts = []
         current_time = datetime.now()
         cutoff_time = current_time - timedelta(seconds=self.time_window)
 
         for src_ip, targets in self.syn_tracker.items():
-            # Count total recent SYN packets from this source
             total_syns = 0
             target_details = {}
 
@@ -94,7 +68,6 @@ class SynFloodDetector:
                     target_details[dst_ip] = len(recent)
 
             if total_syns >= self.syn_threshold:
-                # Calculate SYN rate
                 syn_rate = total_syns / self.time_window
 
                 alerts.append(
@@ -113,12 +86,6 @@ class SynFloodDetector:
         return alerts
 
     def detect_flag_anomalies(self):
-        """
-        Detect suspicious TCP flag combinations (scans and evasion techniques).
-
-        Returns:
-            List of detected flag anomaly alerts
-        """
         alerts = []
         current_time = datetime.now()
         cutoff_time = current_time - timedelta(seconds=self.time_window)
@@ -139,7 +106,6 @@ class SynFloodDetector:
                 if not recent:
                     continue
 
-                # Even a single suspicious flag packet is worth reporting
                 unique_targets = set(e["dst_ip"] for e in recent)
                 unique_ports = set(e["dst_port"] for e in recent)
 
@@ -154,7 +120,6 @@ class SynFloodDetector:
                         "packet_count": len(recent),
                         "unique_targets": len(unique_targets),
                         "unique_ports": len(unique_ports),
-                        "sample_targets": sorted(unique_targets)[:5],
                         "sample_ports": sorted(unique_ports)[:10],
                         "timestamp": current_time,
                     }
@@ -163,11 +128,9 @@ class SynFloodDetector:
         return alerts
 
     def cleanup_old_data(self):
-        """Remove data older than time_window to prevent memory buildup."""
         current_time = datetime.now()
         cutoff_time = current_time - timedelta(seconds=self.time_window)
 
-        # Cleanup SYN tracker
         for src_ip in list(self.syn_tracker.keys()):
             for dst_ip in list(self.syn_tracker[src_ip].keys()):
                 recent = [
@@ -180,7 +143,6 @@ class SynFloodDetector:
             if not self.syn_tracker[src_ip]:
                 del self.syn_tracker[src_ip]
 
-        # Cleanup flag tracker
         for src_ip in list(self.flag_tracker.keys()):
             for flag_name in list(self.flag_tracker[src_ip].keys()):
                 recent = [

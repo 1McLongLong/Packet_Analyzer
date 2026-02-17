@@ -3,7 +3,6 @@ from datetime import datetime
 import sys
 import os
 
-# Add the analyzers directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "analyzers"))
 from analyzers.port_scan import PortScanDetector
 from analyzers.exfiltration import DataExfiltrationDetector
@@ -113,14 +112,12 @@ def start_sniffing_with_detection(interface=None, packet_count=0):
         if packet_data:
             collector.add_packet(packet_data)
 
-            # Track with all detectors
             port_scan_detector.track_packet(packet_data)
             exfil_detector.track_packet(packet_data)
             syn_flood_detector.track_packet(packet_data)
 
             packet_counter += 1
 
-            # Check for threats every 20 packets
             if packet_counter % 20 == 0:
 
                 threat_intel = None
@@ -129,15 +126,12 @@ def start_sniffing_with_detection(interface=None, packet_count=0):
                         api_key=config.ABUSEIPDB_API_KEY,
                         cache_duration=config.THREAT_INTEL_CACHE_DURATION,
                     )
-                # Check port scans
                 scans = port_scan_detector.detect_scans()
                 for scan in scans:
-                    # Check source IP reputation
                     if threat_intel:
                         rep = threat_intel.check_ip(scan["src_ip"])
                         scan["threat_intel"] = rep
 
-                    # Print alert
                     print("\n" + "=" * 60)
                     print("⚠️  PORT SCAN DETECTED!")
                     print("=" * 60)
@@ -151,15 +145,12 @@ def start_sniffing_with_detection(interface=None, packet_count=0):
 
                     print("-" * 60)
 
-                # Check data exfiltration
                 exfil_alerts = exfil_detector.detect_exfiltration()
                 for alert in exfil_alerts:
-                    # Check destination IP reputation
                     if threat_intel:
                         rep = threat_intel.check_ip(alert["dst_ip"])
                         alert["threat_intel"] = rep
 
-                    # Print alert
                     print("\n" + "=" * 60)
                     print("🚨 DATA EXFILTRATION DETECTED!")
                     print("=" * 60)
@@ -174,7 +165,6 @@ def start_sniffing_with_detection(interface=None, packet_count=0):
 
                     print("-" * 60)
 
-                # Check SYN floods
                 syn_alerts = syn_flood_detector.detect_syn_flood()
                 for alert in syn_alerts:
                     if threat_intel:
@@ -198,7 +188,6 @@ def start_sniffing_with_detection(interface=None, packet_count=0):
 
                     print("-" * 60)
 
-                # Check flag anomalies (XMAS, NULL, FIN, SYN+FIN scans)
                 flag_alerts = syn_flood_detector.detect_flag_anomalies()
                 for alert in flag_alerts:
                     if threat_intel:
@@ -221,12 +210,10 @@ def start_sniffing_with_detection(interface=None, packet_count=0):
 
                     print("-" * 60)
 
-                # Cleanup old data
                 port_scan_detector.cleanup_old_data()
                 exfil_detector.cleanup_old_data()
                 syn_flood_detector.cleanup_old_data()
 
-            # Print packet info (less verbose)
             if packet_counter % 10 == 0:
                 print(
                     f"[Packets: {packet_counter}] Latest: {packet_data['src_ip']} → {packet_data['dst_ip']}"
